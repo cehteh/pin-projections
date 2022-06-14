@@ -1,0 +1,11 @@
+[package]
+name = "pin-projections"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Christian Thäter <ct@pipapo.org>"]
+description = "Declarative macro for creating projection functions for pinned objects"
+repository = "https://github.com/cehteh/pin-projections.git"
+keywords = ["macros", "pin"]
+
+[dependencies]
