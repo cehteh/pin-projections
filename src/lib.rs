@@ -7,21 +7,28 @@
 /// SAFETY: see [projections and structural pinning](https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning)
 /// at the rust standard library reference.
 ///
+/// Projections are written inside the `impl` block of a struct.
+///
+///
 /// The syntax is:
 ///
-///     project!($MEMBER as $FUNCTION() -> $PROJECTION)
+/// ```text
+/// project!($MEMBER as $FUNCTION() -> $PROJECTION)
+/// ```
 ///
 /// or
 ///
-///     project!($MEMBER -> $PROJECTION)
+/// ```text
+/// project!($MEMBER -> $PROJECTION)
+/// ```
 ///
 /// The parameters are:
-///  - *MEMBER* name of the structures member to project
-///  - *FUNCTION* name for the projection function (optional, when not given the MEMBER name is used)
-///  - *PROJECTION* resulting type (type of MEMBER as `Pin<&Type>`, `Pin<&mut Type>`, `&Type` or `&mut Type`
+///  - **MEMBER:** name of the structures member to project
+///  - **FUNCTION:** name for the projection function (optional, when not given the MEMBER name is used)
+///  - **PROJECTION:** resulting type (Type of MEMBER as `Pin<&Type>`, `Pin<&mut Type>`, `&Type` or `&mut Type`
 ///
 /// The generated projection functions take `self: Pin<&Self>` or `self: Pin<&mut Self>` and return the
-/// PROJECTION Type.
+/// PROJECTION type.
 #[macro_export]
 macro_rules! project {
     ($M:ident as $N:ident() -> Pin<&$T:ty>) => {
