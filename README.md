@@ -1,6 +1,6 @@
 Yet another pin projection helper macro
 
-Creates projection functions for pinned objects.
+Creates zero-cost projection functions for pinned objects.
 
 Example usage:
 ```
@@ -38,6 +38,9 @@ impl Example {
 
     // 5. one for a mutable reference.
     project!(not_structural_pinned as second_entry_mut() -> &mut Entry);
+
+    // 6. all projections can be defined unsafe if necessary.
+    project!(unsafe structural_pinned as unsafe_projection() -> &mut Entry);
 }
 
 fn main() {
