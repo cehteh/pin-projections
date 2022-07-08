@@ -8,6 +8,7 @@ use pin_projections::project;
 use std::pin::Pin;
 
 // Just a placeholder for illustration
+#[derive(Clone)]
 struct Entry(u64);
 
 // The structure to be projected
@@ -30,7 +31,7 @@ impl Example {
     project!(structural_pinned -> Pin<&Entry>);
 
     // When no projection name is given then mutable and immutable projections are
-    // mutually exclusive. The following would then collide with the definition above.
+    // mutually exclusive. The following would then collide with the definition #3 above.
     // project!(structural_pinned -> Pin<&mut Entry>);
 
     // 4. non structural pinned members are similar, just without the Pin<>
@@ -41,6 +42,15 @@ impl Example {
 
     // 6. all projections can be defined unsafe if necessary.
     project!(unsafe structural_pinned as unsafe_projection() -> &mut Entry);
+
+    // 7. Types that are Clone can use a (cloning) getter.
+    project!(structural_pinned as get_first() -> Entry);
+
+    // 8. Types that are Clone you can use a borrowing setter.
+    project!(structural_pinned as set_first_from(&Entry));
+
+    // 9. Types that are not Clone can be set by a owning setter.
+    project!(structural_pinned as set_first_to(Entry));
 }
 
 fn main() {

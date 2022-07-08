@@ -4,28 +4,44 @@
 
 /// Defines a pin projection.
 ///
-/// SAFETY: see [projections and structural pinning](https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning)
-/// at the rust standard library reference.
-///
 /// Projections are written inside the `impl` block of a struct.
 ///
 /// The syntax is:
 ///
 /// ```text
-/// project!($MEMBER as $FUNCTION() -> $PROJECTION)
-/// project!(unsafe $MEMBER as $FUNCTION() -> $PROJECTION)
-/// project!($MEMBER -> $PROJECTION)
-/// project!(unsafe $MEMBER -> $PROJECTION)
+/// project!([unsafe] $MEMBER as $FUNCTION() -> $PROJECTION)
+/// project!([unsafe] $MEMBER -> $PROJECTION)
+/// project!([unsafe] $MEMBER as $FUNCTION($FROM))
 /// ```
 ///
 /// The parameters are:
+///  - **unsafe** is optional and generates an unsafe projection function.
 ///  - **MEMBER:** name of the structures member to project
 ///  - **FUNCTION:** name for the projection function (optional, when not given the MEMBER name is used)
-///  - **PROJECTION:** resulting type (Type of MEMBER as `Pin<&Type>`, `Pin<&mut Type>`, `&Type` or `&mut Type`
-///  - When **unsafe** is used a unsafe projection function is generated.
+///  - **PROJECTION:** resulting type
+///    Type of MEMBER as:
+///    - `Pin<&Type>`
+///    - `Pin<&mut Type>`
+///    - `&Type`
+///    - `&mut Type`
+///    - `Type`
+///  - **FROM:** source for setters must by the type of MEMBER
+///    - `Type` for a owned setter.
+///    - `&Type` for a cloning setter.
 ///
-/// The generated projection functions take `self: Pin<&Self>` or `self: Pin<&mut Self>` and return the
-/// PROJECTION type.
+/// The generated projection functions take `self: Pin<&Self>` or `self: Pin<&mut Self>`
+/// (depending on the output type) and return the PROJECTION type or nothing for setters which
+/// destroy the old value in place.
+///
+///
+/// # SAFETY
+///
+/// See [projections and structural pinning](https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning)
+/// at the rust standard library reference.
+///
+/// This library provides a thin (zero cost, fast to compile) wrapper for generating
+/// projection functions. The safety thereof lies in the hands of the user!
+///
 #[macro_export]
 macro_rules! project {
     (unsafe $M:ident as $N:ident() -> Pin<&$T:ty>) => {
@@ -70,10 +86,34 @@ macro_rules! project {
             &mut self.get_unchecked_mut().$M
         }
     };
+    (unsafe $M:ident as $N:ident() -> $T:ty) => {
+        #[inline]
+        pub unsafe fn $N(self: Pin<&Self>) -> $T {
+            self.get_ref().$M.clone()
+        }
+    };
+    (unsafe $M:ident as $N:ident(&$T:ty)) => {
+        #[inline]
+        pub unsafe fn $N(self: Pin<&mut Self>, from: &$T) {
+            self.get_unchecked_mut().$M = from.clone();
+        }
+    };
+    (unsafe $M:ident as $N:ident($T:ty)) => {
+        #[inline]
+        pub unsafe fn $N(self: Pin<&mut Self>, from: $T) {
+            self.get_unchecked_mut().$M = from;
+        }
+    };
     (unsafe $M:ident -> &$T:ty) => {
         #[inline]
         pub unsafe fn $M(self: Pin<&Self>) -> &$T {
             &self.get_ref().$M
+        }
+    };
+    (unsafe $M:ident -> $T:ty) => {
+        #[inline]
+        pub unsafe fn $M(self: Pin<&Self>) -> $T {
+            self.get_ref().$M.clone()
         }
     };
 
@@ -101,6 +141,24 @@ macro_rules! project {
             &self.get_ref().$M
         }
     };
+    ($M:ident as $N:ident() -> $T:ty) => {
+        #[inline]
+        pub fn $N(self: Pin<&Self>) -> $T {
+            self.get_ref().$M.clone()
+        }
+    };
+    ($M:ident as $N:ident(&$T:ty)) => {
+        #[inline]
+        pub fn $N(self: Pin<&mut Self>, from: &$T) {
+            unsafe { self.get_unchecked_mut().$M = from.clone() };
+        }
+    };
+    ($M:ident as $N:ident($T:ty)) => {
+        #[inline]
+        pub fn $N(self: Pin<&mut Self>, from: $T) {
+            unsafe { self.get_unchecked_mut().$M = from };
+        }
+    };
     ($M:ident -> Pin<&$T:ty>) => {
         #[inline]
         pub fn $M(self: Pin<&Self>) -> Pin<&$T> {
@@ -123,6 +181,12 @@ macro_rules! project {
         #[inline]
         pub fn $M(self: Pin<&Self>) -> &$T {
             &self.get_ref().$M
+        }
+    };
+    ($M:ident -> $T:ty) => {
+        #[inline]
+        pub fn $M(self: Pin<&Self>) -> $T {
+            self.get_ref().$M.clone()
         }
     };
 }
