@@ -33,6 +33,8 @@
 /// (depending on the output type) and return the PROJECTION type or nothing for setters which
 /// destroy the old value in place.
 ///
+/// Note that almost all possible combinations (except unnamed setters) are provided. Not all
+/// of the combinations make necessary sense but are provided for completeness.
 ///
 /// # SAFETY
 ///
@@ -44,10 +46,25 @@
 ///
 #[macro_export]
 macro_rules! project {
+    // named, immutable, structurally pinned
+    ($M:ident as $N:ident() -> Pin<&$T:ty>) => {
+        #[inline]
+        pub fn $N(self: Pin<&Self>) -> Pin<&$T> {
+            unsafe { self.map_unchecked(|s| &s.$M) }
+        }
+    };
     (unsafe $M:ident as $N:ident() -> Pin<&$T:ty>) => {
         #[inline]
         pub unsafe fn $N(self: Pin<&Self>) -> Pin<&$T> {
             self.map_unchecked(|s| &s.$M)
+        }
+    };
+
+    // named, mutable, structurally pinned
+    ($M:ident as $N:ident() -> Pin<&mut $T:ty>) => {
+        #[inline]
+        pub fn $N(self: Pin<&mut Self>) -> Pin<&mut $T> {
+            unsafe { self.map_unchecked_mut(|s| &mut s.$M) }
         }
     };
     (unsafe $M:ident as $N:ident() -> Pin<&mut $T:ty>) => {
@@ -56,10 +73,12 @@ macro_rules! project {
             self.map_unchecked_mut(|s| &mut s.$M)
         }
     };
-    (unsafe $M:ident as $N:ident() -> &mut $T:ty) => {
+
+    // named, immutable, not structurally pinned
+    ($M:ident as $N:ident() -> &$T:ty) => {
         #[inline]
-        pub unsafe fn $N(self: Pin<&mut Self>) -> &mut $T {
-            &mut self.get_unchecked_mut().$M
+        pub fn $N(self: Pin<&Self>) -> &$T {
+            &self.get_ref().$M
         }
     };
     (unsafe $M:ident as $N:ident() -> &$T:ty) => {
@@ -68,10 +87,40 @@ macro_rules! project {
             &self.get_ref().$M
         }
     };
+
+    // named, mutable, not structurally pinned
+    ($M:ident as $N:ident() -> &mut $T:ty) => {
+        #[inline]
+        pub fn $N(self: Pin<&mut Self>) -> &mut $T {
+            unsafe { &mut self.get_unchecked_mut().$M }
+        }
+    };
+    (unsafe $M:ident as $N:ident() -> &mut $T:ty) => {
+        #[inline]
+        pub unsafe fn $N(self: Pin<&mut Self>) -> &mut $T {
+            &mut self.get_unchecked_mut().$M
+        }
+    };
+
+    // unnamed, immutable, structurally pinned
+    ($M:ident -> Pin<&$T:ty>) => {
+        #[inline]
+        pub fn $M(self: Pin<&Self>) -> Pin<&$T> {
+            unsafe { self.map_unchecked(|s| &s.$M) }
+        }
+    };
     (unsafe $M:ident -> Pin<&$T:ty>) => {
         #[inline]
         pub unsafe fn $M(self: Pin<&Self>) -> Pin<&$T> {
             self.map_unchecked(|s| &s.$M)
+        }
+    };
+
+    // unnamed, mutable, structurally pinned
+    ($M:ident -> Pin<&mut $T:ty>) => {
+        #[inline]
+        pub fn $M(self: Pin<&mut Self>) -> Pin<&mut $T> {
+            unsafe { self.map_unchecked_mut(|s| &mut s.$M) }
         }
     };
     (unsafe $M:ident -> Pin<&mut $T:ty>) => {
@@ -80,10 +129,40 @@ macro_rules! project {
             self.map_unchecked_mut(|s| &mut s.$M)
         }
     };
+
+    // unnamed, immutable, not structurally pinned
+    ($M:ident -> &$T:ty) => {
+        #[inline]
+        pub fn $M(self: Pin<&Self>) -> &$T {
+            &self.get_ref().$M
+        }
+    };
+    (unsafe $M:ident -> &$T:ty) => {
+        #[inline]
+        pub unsafe fn $M(self: Pin<&Self>) -> &$T {
+            &self.get_ref().$M
+        }
+    };
+
+    // unnamed, mutable, not structurally pinned
+    ($M:ident -> &mut $T:ty) => {
+        #[inline]
+        pub fn $M(self: Pin<&mut Self>) -> &mut $T {
+            unsafe { &mut self.get_unchecked_mut().$M }
+        }
+    };
     (unsafe $M:ident -> &mut $T:ty) => {
         #[inline]
         pub unsafe fn $M(self: Pin<&mut Self>) -> &mut $T {
             &mut self.get_unchecked_mut().$M
+        }
+    };
+
+    // named, getter, by clone
+    ($M:ident as $N:ident() -> $T:ty) => {
+        #[inline]
+        pub fn $N(self: Pin<&Self>) -> $T {
+            self.get_ref().$M.clone()
         }
     };
     (unsafe $M:ident as $N:ident() -> $T:ty) => {
@@ -92,22 +171,12 @@ macro_rules! project {
             self.get_ref().$M.clone()
         }
     };
-    (unsafe $M:ident as $N:ident(&$T:ty)) => {
+
+    // unnamed, getter, by clone
+    ($M:ident -> $T:ty) => {
         #[inline]
-        pub unsafe fn $N(self: Pin<&mut Self>, from: &$T) {
-            self.get_unchecked_mut().$M = from.clone();
-        }
-    };
-    (unsafe $M:ident as $N:ident($T:ty)) => {
-        #[inline]
-        pub unsafe fn $N(self: Pin<&mut Self>, from: $T) {
-            self.get_unchecked_mut().$M = from;
-        }
-    };
-    (unsafe $M:ident -> &$T:ty) => {
-        #[inline]
-        pub unsafe fn $M(self: Pin<&Self>) -> &$T {
-            &self.get_ref().$M
+        pub fn $M(self: Pin<&Self>) -> $T {
+            self.get_ref().$M.clone()
         }
     };
     (unsafe $M:ident -> $T:ty) => {
@@ -117,76 +186,31 @@ macro_rules! project {
         }
     };
 
-    ($M:ident as $N:ident() -> Pin<&$T:ty>) => {
-        #[inline]
-        pub fn $N(self: Pin<&Self>) -> Pin<&$T> {
-            unsafe { self.map_unchecked(|s| &s.$M) }
-        }
-    };
-    ($M:ident as $N:ident() -> Pin<&mut $T:ty>) => {
-        #[inline]
-        pub fn $N(self: Pin<&mut Self>) -> Pin<&mut $T> {
-            unsafe { self.map_unchecked_mut(|s| &mut s.$M) }
-        }
-    };
-    ($M:ident as $N:ident() -> &mut $T:ty) => {
-        #[inline]
-        pub fn $N(self: Pin<&mut Self>) -> &mut $T {
-            unsafe { &mut self.get_unchecked_mut().$M }
-        }
-    };
-    ($M:ident as $N:ident() -> &$T:ty) => {
-        #[inline]
-        pub fn $N(self: Pin<&Self>) -> &$T {
-            &self.get_ref().$M
-        }
-    };
-    ($M:ident as $N:ident() -> $T:ty) => {
-        #[inline]
-        pub fn $N(self: Pin<&Self>) -> $T {
-            self.get_ref().$M.clone()
-        }
-    };
+    // named, setter, by clone
     ($M:ident as $N:ident(&$T:ty)) => {
         #[inline]
         pub fn $N(self: Pin<&mut Self>, from: &$T) {
             unsafe { self.get_unchecked_mut().$M = from.clone() };
         }
     };
+    (unsafe $M:ident as $N:ident(&$T:ty)) => {
+        #[inline]
+        pub unsafe fn $N(self: Pin<&mut Self>, from: &$T) {
+            self.get_unchecked_mut().$M = from.clone();
+        }
+    };
+
+    // named, setter by move
     ($M:ident as $N:ident($T:ty)) => {
         #[inline]
         pub fn $N(self: Pin<&mut Self>, from: $T) {
             unsafe { self.get_unchecked_mut().$M = from };
         }
     };
-    ($M:ident -> Pin<&$T:ty>) => {
+    (unsafe $M:ident as $N:ident($T:ty)) => {
         #[inline]
-        pub fn $M(self: Pin<&Self>) -> Pin<&$T> {
-            unsafe { self.map_unchecked(|s| &s.$M) }
-        }
-    };
-    ($M:ident -> Pin<&mut $T:ty>) => {
-        #[inline]
-        pub fn $M(self: Pin<&mut Self>) -> Pin<&mut $T> {
-            unsafe { self.map_unchecked_mut(|s| &mut s.$M) }
-        }
-    };
-    ($M:ident -> &mut $T:ty) => {
-        #[inline]
-        pub fn $M(self: Pin<&mut Self>) -> &mut $T {
-            unsafe { &mut self.get_unchecked_mut().$M }
-        }
-    };
-    ($M:ident -> &$T:ty) => {
-        #[inline]
-        pub fn $M(self: Pin<&Self>) -> &$T {
-            &self.get_ref().$M
-        }
-    };
-    ($M:ident -> $T:ty) => {
-        #[inline]
-        pub fn $M(self: Pin<&Self>) -> $T {
-            self.get_ref().$M.clone()
+        pub unsafe fn $N(self: Pin<&mut Self>, from: $T) {
+            self.get_unchecked_mut().$M = from;
         }
     };
 }
