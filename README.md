@@ -22,13 +22,13 @@ impl Example {
 
     // defining a projection for structural_pinned
     // 1. for a pinned shared reference
-    project!(structural_pinned as first_entry() -> Pin<&Entry>);
+    project!(pub structural_pinned as first_entry() -> Pin<&Entry>);
 
     // 2. and one for a pinned mutable reference.
     project!(structural_pinned as first_entry_mut() -> Pin<&mut Entry>);
 
     // 3. without the 'as function()' part the projection is named the same as the member
-    project!(structural_pinned -> Pin<&Entry>);
+    project!(pub structural_pinned -> Pin<&Entry>);
 
     // When no projection name is given then mutable and immutable projections are
     // mutually exclusive. The following would then collide with the definition #3 above.
@@ -41,7 +41,7 @@ impl Example {
     project!(not_structural_pinned as second_entry_mut() -> &mut Entry);
 
     // 6. all projections can be defined unsafe if necessary.
-    project!(unsafe structural_pinned as unsafe_projection() -> &mut Entry);
+    project!(pub(crate) unsafe structural_pinned as unsafe_projection() -> &mut Entry);
 
     // 7. Types that are Clone can use a (cloning) getter.
     project!(structural_pinned as get_first() -> Entry);
